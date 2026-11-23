@@ -1,11 +1,17 @@
 import type { Dispatch, SetStateAction } from "react";
 import { ArrowDown, ArrowUp, Copy, GripVertical, Minus, Plus, RotateCcw, Type } from "lucide-react";
+import { describeRisk, evaluateLayerRisk } from "@/shared/bounds";
 import { presets } from "@/shared/defaults";
-import type { BackgroundAsset, Layer, Preset } from "@/shared/types";
+import type { BackgroundAsset, BoundarySettings, Layer, Preset } from "@/shared/types";
 
-type StageProps = { background: BackgroundAsset; layers: Layer[]; selectedId: string | null; onSelect: (id: string) => void; onChange: (id: string, patch: Partial<Layer>) => void };
+type StageProps = { background: BackgroundAsset; layers: Layer[]; selectedId: string | null; boundary: BoundarySettings; onSelect: (id: string) => void; onChange: (id: string, patch: Partial<Layer>) => void };
 
-export function CanvasStage({ background, layers, selectedId, onSelect, onChange }: StageProps) {
+export function CanvasStage({ background, layers, selectedId, boundary, onSelect, onChange }: StageProps) {
+  // 设计画布即 1080×1080 设计空间；拖动过程中图层状态实时更新，风险随之重算
+  const risks = layers.map((layer) => ({ layer, risk: evaluateLayerRisk(layer, boundary) }));
+  const riskOf = (id: string) => risks.find((item) => item.layer.id === id)?.risk;
+  const selectedRisk = risks.find((item) => item.layer.id === selectedId && item.risk.level !== "safe");
+  const riskCount = risks.filter((item) => item.risk.level !== "safe").length;
   const move = (event: React.PointerEvent<HTMLDivElement>, layer: Layer) => {
     if (layer.kind === "text" && event.button !== 0) return;
     const target = event.currentTarget.closest(".canvas-stage") as HTMLDivElement | null;
@@ -24,8 +30,16 @@ export function CanvasStage({ background, layers, selectedId, onSelect, onChange
   };
   return <div className="canvas-stage" style={{ background: background.style }}>
     <div className="grain" />
-    {layers.map((layer) => <div key={layer.id} className={`canvas-layer ${layer.kind} ${selectedId === layer.id ? "selected" : ""}`} onPointerDown={(event) => { onSelect(layer.id); move(event, layer); }} style={{ left: `${layer.x}%`, top: `${layer.y}%`, transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${layer.scale})`, color: layer.color, fontSize: `${layer.fontSize}px`, opacity: layer.opacity }}>{layer.kind === "text" ? layer.content : layer.content}<span className="layer-handle" /></div>)}
-    <div className="stage-caption"><span>LIVE CANVAS</span><span>1080 × 1080</span></div>
+    {boundary.showOnCanvas && <>
+      <div className="guide-boundary bleed" style={{ inset: `${boundary.bleedMargin}%` }}><span>出血区</span></div>
+      <div className="guide-boundary safe" style={{ inset: `${boundary.safeMargin}%` }}><span>安全区</span></div>
+    </>}
+    {layers.map((layer) => {
+      const risk = riskOf(layer.id);
+      return <div key={layer.id} className={`canvas-layer ${layer.kind} ${selectedId === layer.id ? "selected" : ""}`} onPointerDown={(event) => { onSelect(layer.id); move(event, layer); }} style={{ left: `${layer.x}%`, top: `${layer.y}%`, transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${layer.scale})`, color: layer.color, fontSize: `${layer.fontSize}px`, opacity: layer.opacity }}>{layer.kind === "text" ? layer.content : layer.content}{risk && risk.level !== "safe" && <span className={`risk-badge ${risk.level}`}>!</span>}<span className="layer-handle" /></div>;
+    })}
+    {selectedRisk && <div className={`stage-risk-hint ${selectedRisk.risk.level}`}>{describeRisk(selectedRisk.layer, selectedRisk.risk)}</div>}
+    <div className="stage-caption"><span>LIVE CANVAS</span><span className={riskCount > 0 ? "caption-risk" : ""}>{riskCount > 0 ? `⚠ ${riskCount} 个图层超出安全区` : "全部在安全区内"}</span><span>1080 × 1080</span></div>
   </div>;
 }
 

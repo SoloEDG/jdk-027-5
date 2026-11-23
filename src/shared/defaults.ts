@@ -1,4 +1,4 @@
-import type { BackgroundAsset, CanvasSize, Layer, Preset, StickerAsset } from "./types";
+import type { BackgroundAsset, BoundarySettings, CanvasSize, Layer, Preset, StickerAsset } from "./types";
 
 export const canvasSizes: CanvasSize[] = [
   { id: "square", label: "正方形", width: 1080, height: 1080, ratio: "1:1" },
@@ -49,6 +49,8 @@ export const presets: Preset[] = [
     positions: [{ x: 50, y: 47, scale: 1.08, rotation: 0 }, { x: 15, y: 15, scale: 0.8, rotation: -15 }, { x: 84, y: 84, scale: 0.8, rotation: 10 }]
   }
 ];
+
+export const defaultBoundary: BoundarySettings = { safeMargin: 8, bleedMargin: 3, showOnCanvas: true, showInPreview: true };
 
 export const defaultLayers: Layer[] = [
   { id: "copy-1", kind: "text", name: "主文案", content: "今天也要发光", x: 50, y: 23, scale: 1, rotation: -2, color: "#fff7e8", fontSize: 56, opacity: 1 },
